@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ai-pipeline-generator
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+    healthCheckPath: /health
