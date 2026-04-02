@@ -41,21 +41,31 @@ async def open_pr(
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         branch_name = f"ai-pipeline-{timestamp}"
 
-        await client.post(
+        branch_resp = await client.post(
             f"{GITHUB_API}/repos/{owner}/{repo}/git/refs",
             json={"ref": f"refs/heads/{branch_name}", "sha": base_sha},
         )
+        branch_resp.raise_for_status()
+
+        # Check if the file already exists on the default branch (need its SHA to update)
+        existing_resp = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/contents/{WORKFLOW_PATH}",
+            params={"ref": branch_name},
+        )
+        file_payload: dict = {
+            "message": "feat: add AI-generated CI/CD pipeline",
+            "content": base64.b64encode(pipeline_yaml.encode()).decode(),
+            "branch": branch_name,
+        }
+        if existing_resp.status_code == 200:
+            file_payload["sha"] = existing_resp.json()["sha"]
 
         # Commit the pipeline file to the new branch
-        content_b64 = base64.b64encode(pipeline_yaml.encode()).decode()
-        await client.put(
+        commit_resp = await client.put(
             f"{GITHUB_API}/repos/{owner}/{repo}/contents/{WORKFLOW_PATH}",
-            json={
-                "message": "feat: add AI-generated CI/CD pipeline",
-                "content": content_b64,
-                "branch": branch_name,
-            },
+            json=file_payload,
         )
+        commit_resp.raise_for_status()
 
         # Open the PR
         pr_resp = await client.post(
