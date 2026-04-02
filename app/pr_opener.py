@@ -47,25 +47,20 @@ async def open_pr(
         )
         branch_resp.raise_for_status()
 
-        # Check if the file already exists on the default branch (need its SHA to update)
-        existing_resp = await client.get(
-            f"{GITHUB_API}/repos/{owner}/{repo}/contents/{WORKFLOW_PATH}",
-            params={"ref": branch_name},
-        )
-        file_payload: dict = {
-            "message": "feat: add AI-generated CI/CD pipeline",
-            "content": base64.b64encode(pipeline_yaml.encode()).decode(),
-            "branch": branch_name,
-        }
-        if existing_resp.status_code == 200:
-            file_payload["sha"] = existing_resp.json()["sha"]
-
         # Commit the pipeline file to the new branch
+        # New branch always starts clean — no SHA needed
         commit_resp = await client.put(
             f"{GITHUB_API}/repos/{owner}/{repo}/contents/{WORKFLOW_PATH}",
-            json=file_payload,
+            json={
+                "message": "feat: add AI-generated CI/CD pipeline",
+                "content": base64.b64encode(pipeline_yaml.encode()).decode(),
+                "branch": branch_name,
+            },
         )
-        commit_resp.raise_for_status()
+        if commit_resp.status_code not in (200, 201):
+            raise RuntimeError(
+                f"Failed to commit pipeline file: {commit_resp.status_code} — {commit_resp.text}"
+            )
 
         # Open the PR
         pr_resp = await client.post(
