@@ -51,13 +51,13 @@ async def detect_stack(owner: str, repo: str, token: str) -> dict:
         elif any(f in file_set for f in ["requirements.txt", "pyproject.toml", "setup.py"]):
             stack["language"] = "python"
             stack["version"] = "3.12"
-        elif "Cargo.toml" in file_set:
+        elif any(f == "Cargo.toml" or f.endswith("/Cargo.toml") for f in files):
             stack["language"] = "rust"
             stack["version"] = "stable"
-        elif "go.mod" in file_set:
+        elif any(f == "go.mod" or f.endswith("/go.mod") for f in files):
             stack["language"] = "go"
             stack["version"] = "1.22"
-        elif any(f in file_set for f in ["pom.xml", "build.gradle", "build.gradle.kts"]):
+        elif any(f in file_set or any(f2.endswith(f) for f2 in files) for f in ["pom.xml", "build.gradle", "build.gradle.kts"]):
             stack["language"] = "java"
             stack["version"] = "21"
 
